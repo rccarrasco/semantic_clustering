@@ -1,0 +1,8 @@
+{
+     "YEARS": "2025-2026",
+     "MAX_DOCS": 100000,
+     "DBLP_XML_FILE": "input/dblp.xml.gz",
+     "DBLP_CSV_FILE": "input/dblp.csv.gz",
+     "DBLP_EMBEDDINGS_FILE": "input/npz/dblp.npz"
+}
+
