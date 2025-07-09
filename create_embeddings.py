@@ -20,6 +20,7 @@ if __name__ == '__main__':
         years = tuple(map(int, pars['YEARS'].split('-')))
         input_file = pars['DBLP_CSV_FILE']
         output_file = pars['DBLP_EMBEDDINGS_FILE']
+        multiproc = pars['MULTIPROCESS']
 
     with open('H:CONFIG/credentials.json') as f:
         proxies = json.load(f)['proxies']
@@ -28,20 +29,25 @@ if __name__ == '__main__':
 
     df = pd.read_csv(input_file)
     print('preparing model')
-    model = SentenceTransformer("all-MiniLM-L6-v2")
+    model = SentenceTransformer('all-MiniLM-L6-v2')
     print('calculating embeddings')
     """
+    # does not accelerate processing
     devices = ['cpu'] * 12
     pool = model.start_multi_process_pool(devices)
-    embeddings = model.encode(docs[:n_docs], pool=pool)
+    embeddings = model.encode(docs, pool=pool)
     model.stop_multi_process_pool()
     """
-    num_cpu = mp.cpu_count()
     for year in range(*years):
         print(year)
         items = df[df.YEAR == year].TITLE.fillna('').to_numpy()
-        with mp.Pool(num_cpu - 2) as p:
-            res = list(tqdm(p.imap(model.encode, items), total=len(items)))
-        head, ext = os.path.splitext(output_file)
-        output_path = f'{head}_{year}{ext}'
-        np.savez_compressed(output_path, data_array=res)
+        if multiproc:
+            num_cpu = mp.cpu_count()
+            with mp.Pool(num_cpu - 2) as p:
+                res = list(tqdm(p.imap(model.encode, items), total=len(items)))
+        else:
+            res = model.encode(items)
+
+    head, ext = os.path.splitext(output_file)
+    output_path = f'{head}_{year}{ext}'
+    np.savez_compressed(output_path, data_array=res)
