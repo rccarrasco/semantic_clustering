@@ -7,7 +7,7 @@ Created on Thu Jul  3 16:47:15 2025
 import json
 import pandas as pd
 import numpy as np
-import multiprocessing as mp
+# import multiprocessing as mp
 
 from scipy.sparse import lil_matrix, csr_matrix
 from scipy.spatial.distance import cosine
@@ -28,33 +28,30 @@ filenames = [f'{folder}/dblp_{y}.npz' for y in range(*years)]
 data = np.concatenate([np.load(n)['data_array'] for n in filenames])
 if len(data) > max_num_docs:
     data = data[:max_num_docs, :]
-n_docs = len(data)
+num_docs = len(data)
 
 print('finding nearest neighbours')
 model = NearestNeighbors(n_neighbors=100, n_jobs=-1)
 model.fit(data)
 cols = model.kneighbors(data, return_distance=False)
-"""
-with mp.Pool(4) as p:
-   res = list(tqdm(p.imap(model.encode, items), total=len(items)))
-"""
+
 # adjacency marix
 print('creating adjacency matrix')
-shape = n_docs, n_docs
+shape = num_docs, num_docs
 A = lil_matrix(shape, dtype=float)
-for m in tqdm(range(n_docs), total=n_docs):
+for m in tqdm(range(num_docs)):
     for n in cols[m]:
         A[m, n] = 1 - cosine(data[m], data[n])
 
 # cluster documents
-model = Leiden(resolution=4)
+model = Leiden(resolution=1)
 cluster_label = model.fit_predict(A.tocsr())
 num_clusters = len(set(cluster_label))
 print('Created', num_clusters, 'clusters')
 
 # characterize clusters by lexical content
 df = pd.read_csv(text_csv_file)
-docs = df[df.YEAR.isin(range(*years))].TITLE.to_numpy()[:n_docs]
+docs = df[df.YEAR.isin(range(*years))].TITLE.to_numpy()[:num_docs]
 token_pattern = r'(?:\w+-)?[a-zA-Z]+(?:-\w+)*'
 vectorizer = CountVectorizer(
     token_pattern=token_pattern,
@@ -66,12 +63,11 @@ vectorizer = CountVectorizer(
 
 term_frequency = vectorizer.fit_transform(docs)
 
-num_docs, num_terms = term_frequency.shape
 terms = vectorizer.get_feature_names_out()
-print(num_terms, 'terms counted')
+print(len(terms), 'terms counted')
 
 # compute cluster frequency using projection matrix
-values = np.ones(num_docs)[:n_docs]
+values = np.ones(num_docs)
 cluster_matrix = csr_matrix((values, (cluster_label, range(num_docs))))
 term_frequency_per_cluster = cluster_matrix * term_frequency
 av_tf = np.asarray(term_frequency_per_cluster.mean(axis=0)).reshape(-1)
@@ -80,7 +76,7 @@ av_tf = np.asarray(term_frequency_per_cluster.mean(axis=0)).reshape(-1)
 print('calculating scores')
 columns = ['CLUSTER', 'TERM', 'SCORE']
 res = pd.DataFrame(columns=columns)
-for m in range(num_clusters):
+for m in tqdm(range(num_clusters)):
     scores = list()
     for n, term in enumerate(terms):
         observed = term_frequency_per_cluster[m, n]
