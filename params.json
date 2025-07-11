@@ -1,8 +1,12 @@
 {
      "DBLP_XML_FILE": "input/dblp.xml.gz",
      "DBLP_CSV_FILE": "input/dblp.csv.gz",
-     "DBLP_EMBEDDINGS_FILE": "input/npz/dblp.npz",
-     "MULTIPROCESS": false,
-     "CHUNK_SIZE": 1000
+     "EMBEDDINGS_FOLDER": "input/npz",
+     "YEARS": "2005-2026",
+     "TRAINING_SET": [2024],
+     "TEST_SET": [2025],
+     "MAX_DOCS": 100000,
+     "CHUNK_SIZE": 1000,
+     "N_NEIGHBORS": 100
 }
 
